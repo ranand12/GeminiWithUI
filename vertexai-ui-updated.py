@@ -13,6 +13,17 @@ data_store_id = ""
 
 
 
+def parse_external_link(url=''):
+    protocol_regex = r'^(gs)://'
+
+    match = re.match(protocol_regex, url)
+    protocol = match.group(1) if match else None
+
+    if protocol == 'gs':
+        return re.sub(protocol_regex, 'https://storage.cloud.google.com/', url)
+    else:
+        return url
+
 
 def replace_references(text: str, references: List):
     for i, reference in enumerate(references):

@@ -26,10 +26,8 @@ data_store_id = os.environ["data_store_id"]
 
 def parse_external_link(url=''):
     protocol_regex = r'^(gs)://'
-
     match = re.match(protocol_regex, url)
     protocol = match.group(1) if match else None
-
     if protocol == 'gs':
         return re.sub(protocol_regex, 'https://storage.cloud.google.com/', url)
     else:
@@ -61,12 +59,10 @@ def initialize_client():
         if location != "global"
         else None
     )
-
     # Create a client
     client = discoveryengine.ConversationalSearchServiceClient(
         client_options=client_options
     )
-
     return client
 
 

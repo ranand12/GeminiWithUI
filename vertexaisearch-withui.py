@@ -4,7 +4,9 @@ from typing import List
 import os
 
 # Update with your API URL if using a hosted instance of Langsmith.
+from dotenv import load_dotenv
 
+load_dotenv()
 
 import os
 from typing import Dict, Optional

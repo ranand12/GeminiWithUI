@@ -2,22 +2,21 @@ import re
 import chainlit as cl
 from typing import List
 import os
-
-# Update with your API URL if using a hosted instance of Langsmith.
-from dotenv import load_dotenv
-
-load_dotenv()
-
-import os
 from typing import Dict, Optional
-
 from datetime import datetime
 from typing import List, Optional, Tuple
-
-
+from langsmith.run_helpers import traceable 
+# Update with your API URL if using a hosted instance of Langsmith.
+from dotenv import load_dotenv
+load_dotenv()
 from google.api_core.client_options import ClientOptions
 from google.cloud import discoveryengine_v1 as discoveryengine
 from google.cloud.discoveryengine_v1 import Conversation
+
+os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+project_name = os.environ["LANGCHAIN_PROJECT"]  # Update with your project name
+
 
 project_id = os.environ["project_id"]
 location = os.environ["location"]  # Values: "global", "us", "eu"
@@ -52,7 +51,20 @@ def add_references(text: str, search_results: List):
     return text
 
 
+@cl.oauth_callback
+def oauth_callback(
+  provider_id: str,
+  token: str,
+  raw_user_data: Dict[str, str],
+  default_user: cl.User,
+) -> Optional[cl.User]:
+    authorizedDomains =["google.com","rajanandk.altostrat.com",r"@\w+\.nyc.gov\.com$"]
+    if provider_id == "google":
+        if raw_user_data["hd"] in authorizedDomains:
+            return default_user
+        return None
 
+@traceable(run_type="llm")
 def initialize_client():
     #  For more information, refer to:
     # https://cloud.google.com/generative-ai-app-builder/docs/locations#specify_a_multi-region_for_your_data_store
@@ -100,6 +112,7 @@ async def on_action(action):
 
 
 @cl.on_message
+@traceable(run_type="llm")
 async def on_message(message: cl.Message):
     print(cl.user_session.get("conversation"))
     request = discoveryengine.ConverseConversationRequest(

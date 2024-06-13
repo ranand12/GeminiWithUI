@@ -5,7 +5,6 @@ import os
 from typing import Dict, Optional
 from datetime import datetime
 from typing import List, Optional, Tuple
-from langsmith.run_helpers import traceable 
 
 # Update with your API URL if using a hosted instance of Langsmith.
 from dotenv import load_dotenv
@@ -18,21 +17,19 @@ from google.auth import default
 from google.auth.transport.requests import Request
 
 
-os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-project_name = os.environ["LANGCHAIN_PROJECT"]  # Update with your project name
 credentials, project = default()
 credentials.refresh(Request())
 access_token = credentials.token
-model_version = os.environ["model_version"]
+
+
 project_id = os.environ["project_id"]
 location = os.environ["location"]  # Values: "global", "us", "eu"
 data_store_id = os.environ["data_store_id"]
-query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec.QueryRephraserSpec(disable=False)
+query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec.QueryRephraserSpec(disable=True)
 query_understand_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec(query_rephraser_spec=query_rephraser_spec1)
-model_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.ModelSpec(model_version=model_version)
+model_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.ModelSpec(model_version="gemini-1.5-flash-001/answer_gen/v1",)
 prompt_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.PromptSpec(preamble="Given the conversation between a user and a helpful assistant and some search results, create a final answer for the assistant. Always respond back to the user in the same language as the user. The answer should use all relevant information from the search results, not introduce any additional information, and use exactly the same words as the search results when possible. The assistant's answer should be formatted as a bulleted list. Each list item should start with the \"-\" symbol.")
-answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=False)
+answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=True)
 
 
 
@@ -47,17 +44,13 @@ def parse_external_link(url=''):
         return url
 
 
-def add_references_answers(text: str, citations: List,response):
+def add_references(text: str, search_results: List):
     textref = f"\n References"
-    textlinks = []
-    
-    for i, citation in enumerate(citations):
-        citindex = int(citation.sources[0].reference_id)
-        url = response.answer.references[citindex].chunk_info.document_metadata.uri
-        title = response.answer.references[citindex].chunk_info.document_metadata.title
-        if not any(url in link for link in textlinks):
-            textlinks.append(f"\n [{title}]({url})")
-    text = text + textref + "".join(textlinks)
+    textlinks = ""
+    for i, search_result in enumerate(search_results[:5]):
+        placeholder = f"[{i + 1}]"
+        textlinks+= (f"\n [{placeholder} {search_result.document.struct_data['title']}]({search_result.document.struct_data['url']})")
+    text = text + textref + textlinks
     return text
 
 
@@ -74,7 +67,7 @@ def oauth_callback(
             return default_user
         return None
 
-@traceable(run_type="llm")
+
 def initialize_client():
     client_options = (
         ClientOptions(api_endpoint="discoveryengine.googleapis.com")
@@ -84,7 +77,21 @@ def initialize_client():
 
 
 client = initialize_client()
+profile1 = "Answers API"
+profile2 = "Search API"
 
+@cl.set_chat_profiles
+async def chat_profile():
+    return [
+        cl.ChatProfile(
+            name=profile1,
+            markdown_description = (f"The underlying model is **{profile1}**.")
+        ),
+        cl.ChatProfile(
+            name="Search API",
+            markdown_description = (f"The underlying model is **{profile2}**.")
+        ),
+    ]
 
 
 def set_session_variables():
@@ -113,7 +120,6 @@ async def on_chat_start():
 
 
 @cl.on_message
-@traceable(run_type="llm")
 async def on_message(message: cl.Message):
     query = discoveryengine.Query()
     query.text = message.content
@@ -124,12 +130,11 @@ async def on_message(message: cl.Message):
     query_understanding_spec = query_understand_spec1,answer_generation_spec=answer_generation_spec
     )
     response = client.answer_query(request=request)
-    content = f"{add_references_answers(response.answer.answer_text, response.answer.citations,response)}"
 
     await cl.Message(
-        content=content
+        content=response.answer.answer_text
     ).send()
-    return content
+    return response
     
    
 

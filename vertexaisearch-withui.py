@@ -58,7 +58,7 @@ def oauth_callback(
   raw_user_data: Dict[str, str],
   default_user: cl.User,
 ) -> Optional[cl.User]:
-    authorizedDomains =["google.com","rajanandk.altostrat.com",r"@\w+\.nyc.gov\.com$"]
+    authorizedDomains =["google.com"]
     if provider_id == "google":
         if raw_user_data["hd"] in authorizedDomains:
             return default_user

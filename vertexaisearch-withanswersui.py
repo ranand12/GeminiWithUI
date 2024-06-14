@@ -28,8 +28,8 @@ location = os.environ["location"]  # Values: "global", "us", "eu"
 data_store_id = os.environ["data_store_id"]
 prompt=os.environ["prompt"]
 authorizedDomainList=os.environ["authorizedDomainList"]
-query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec.QueryRephraserSpec(disable=False)
-query_understand_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec(query_rephraser_spec=query_rephraser_spec1)
+#query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec.QueryRephraserSpec(disable=False)
+#query_understand_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec(query_rephraser_spec=query_rephraser_spec1)
 model_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.ModelSpec(model_version=model_version)
 prompt_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.PromptSpec(preamble=prompt)
 related_question_spec = discoveryengine.AnswerQueryRequest.RelatedQuestionsSpec(enable=True)
@@ -122,9 +122,7 @@ async def on_message(message: cl.Message):
     request = discoveryengine.AnswerQueryRequest(
     query=query,
     session=current_session,
-    serving_config= f"projects/{project_id}/locations/{location}/collections/default_collection/dataStores/{data_store_id}/servingConfigs/default_serving_config",
-    query_understanding_spec = query_understand_spec1,answer_generation_spec=answer_generation_spec,related_questions_spec=related_question_spec
-    )
+    serving_config= f"projects/{project_id}/locations/{location}/collections/default_collection/dataStores/{data_store_id}/servingConfigs/default_serving_config",answer_generation_spec=answer_generation_spec,related_questions_spec=related_question_spec )
     response = client.answer_query(request=request)
     content = f"{add_references_answers(response.answer.answer_text, response.answer.citations,response)}"
     async with cl.Step(name="Related questions") as parent_step:

@@ -26,10 +26,12 @@ model_version = os.environ["model_version"]
 project_id = os.environ["project_id"]
 location = os.environ["location"]  # Values: "global", "us", "eu"
 data_store_id = os.environ["data_store_id"]
+prompt=os.environ["prompt"]
+authorizedDomainList=os.environ["authorizedDomainList"]
 query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec.QueryRephraserSpec(disable=False)
 query_understand_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec(query_rephraser_spec=query_rephraser_spec1)
 model_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.ModelSpec(model_version=model_version)
-prompt_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.PromptSpec(preamble="Given the conversation between a user and a helpful assistant and some search results, create a final answer for the assistant. Always respond back to the user in the same language as the user. The answer should use all relevant information from the search results, not introduce any additional information, and use exactly the same words as the search results when possible. The assistant's answer should be formatted as a bulleted list. Each list item should start with the \"-\" symbol.")
+prompt_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.PromptSpec(preamble=prompt)
 answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=True)
 
 
@@ -66,7 +68,7 @@ def oauth_callback(
   raw_user_data: Dict[str, str],
   default_user: cl.User,
 ) -> Optional[cl.User]:
-    authorizedDomains =["google.com","rajanandk.altostrat.com"]
+    authorizedDomains =authorizedDomainList
     if provider_id == "google":
         if raw_user_data["hd"] in authorizedDomains:
             return default_user

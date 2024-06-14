@@ -107,7 +107,7 @@ async def on_chat_start():
     global current_session
     current_session = current_session_local
     cl.user_session.set("conversation", current_session)
-    await cl.Message(content=f"Welcome to the OTI NYC MyCity Chatbot. Please ask your question below.", type="system_message").send()
+    await cl.Message(content=f"Welcome to the Chatbot. Please ask your question below.", type="system_message").send()
 
 
 

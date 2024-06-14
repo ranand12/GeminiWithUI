@@ -22,8 +22,6 @@ os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 project_name = os.environ["LANGCHAIN_PROJECT"]  # Update with your project name
 credentials, project = default()
-credentials.refresh(Request())
-access_token = credentials.token
 model_version = os.environ["model_version"]
 project_id = os.environ["project_id"]
 location = os.environ["location"]  # Values: "global", "us", "eu"
@@ -32,7 +30,7 @@ query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpe
 query_understand_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec(query_rephraser_spec=query_rephraser_spec1)
 model_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.ModelSpec(model_version=model_version)
 prompt_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.PromptSpec(preamble="Given the conversation between a user and a helpful assistant and some search results, create a final answer for the assistant. Always respond back to the user in the same language as the user. The answer should use all relevant information from the search results, not introduce any additional information, and use exactly the same words as the search results when possible. The assistant's answer should be formatted as a bulleted list. Each list item should start with the \"-\" symbol.")
-answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=False)
+answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=True)
 
 
 
@@ -48,7 +46,7 @@ def parse_external_link(url=''):
 
 
 def add_references_answers(text: str, citations: List,response):
-    textref = f"\n References"
+    textref = f"\n References:"
     textlinks = []
     
     for i, citation in enumerate(citations):
@@ -68,7 +66,7 @@ def oauth_callback(
   raw_user_data: Dict[str, str],
   default_user: cl.User,
 ) -> Optional[cl.User]:
-    authorizedDomains =["google.com"]
+    authorizedDomains =["google.com","rajanandk.altostrat.com"]
     if provider_id == "google":
         if raw_user_data["hd"] in authorizedDomains:
             return default_user
@@ -88,6 +86,8 @@ client = initialize_client()
 
 
 def set_session_variables():
+    credentials.refresh(Request())
+    access_token = credentials.token
     url = (f"https://discoveryengine.googleapis.com/v1beta/projects/{project_id}/locations/global/collections/default_collection/dataStores/{data_store_id}/sessions")
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -103,12 +103,11 @@ def set_session_variables():
 
 @cl.on_chat_start
 async def on_chat_start():
-    
     current_session_local = set_session_variables()
     global current_session
     current_session = current_session_local
     cl.user_session.set("conversation", current_session)
-    await cl.Message(content=f"Welcome to the Chatbot. Please ask your question below.", type="system_message").send()
+    await cl.Message(content=f"Welcome to the OTI NYC MyCity Chatbot. Please ask your question below.", type="system_message").send()
 
 
 

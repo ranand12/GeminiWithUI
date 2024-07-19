@@ -6,6 +6,7 @@ from typing import Dict, Optional
 from datetime import datetime
 from typing import List, Optional, Tuple
 from langsmith.run_helpers import traceable 
+from google.oauth2 import id_token
 
 # Update with your API URL if using a hosted instance of Langsmith.
 from dotenv import load_dotenv
@@ -27,13 +28,16 @@ project_id = os.environ["project_id"]
 location = os.environ["location"]  # Values: "global", "us", "eu"
 data_store_id = os.environ["data_store_id"]
 prompt=os.environ["prompt"]
+
+
 authorizedDomainList=os.environ["authorizedDomainList"]
+
 #query_rephraser_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec.QueryRephraserSpec(disable=False)
 #query_understand_spec1 = discoveryengine.AnswerQueryRequest.QueryUnderstandingSpec(query_rephraser_spec=query_rephraser_spec1)
 model_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.ModelSpec(model_version=model_version)
 prompt_spec1 = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec.PromptSpec(preamble=prompt)
 related_question_spec = discoveryengine.AnswerQueryRequest.RelatedQuestionsSpec(enable=True)
-answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=True)
+answer_generation_spec = discoveryengine.AnswerQueryRequest.AnswerGenerationSpec(model_spec=model_spec1,prompt_spec=prompt_spec1,include_citations=True,ignore_low_relevant_content=False)
 
 
 
@@ -51,7 +55,6 @@ def parse_external_link(url=''):
 def add_references_answers(text: str, citations: List,response):
     textref = f"\n References:"
     textlinks = []
-    
     for i, citation in enumerate(citations):
         citindex = int(citation.sources[0].reference_id)
         url = response.answer.references[citindex].chunk_info.document_metadata.uri
@@ -101,7 +104,6 @@ def set_session_variables():
     }
     response = requests.post(url, headers=headers,json=data)
     return response.json()['name']
-
 
 
 @cl.on_chat_start

@@ -6,9 +6,9 @@ This guide provides specific instructions for deploying your Chainlit applicatio
 
 Google Cloud Shell provides several advantages for deployment:
 
-1. No need to install Google Cloud SDK or Docker locally
+1. No need to install Google Cloud SDK locally
 2. Pre-authenticated with your Google Cloud account
-3. Uses Cloud Build for container building, which is more reliable than local Docker
+3. Uses Cloud Build for container building
 4. Free to use and accessible from any browser
 
 ## Step 1: Open Cloud Shell
@@ -35,12 +35,14 @@ cd your-repo/VertexAI-Basic-Chainlit
    - chainlit-with-vertex-basic.py
    - requirements.txt
    - Dockerfile
-   - chainlit.md
+   - cloudbuild.yaml
    - deploy.sh
-   - setup-secret.sh
+   - chainlit.md
    - Any other necessary files
 
 ## Step 3: Enable Required APIs
+
+The deploy.sh script will handle this automatically, but if you want to enable them manually:
 
 ```bash
 # Set your project ID
@@ -50,89 +52,96 @@ echo "Using project: $PROJECT_ID"
 # Enable required APIs
 gcloud services enable run.googleapis.com \
   artifactregistry.googleapis.com \
-  secretmanager.googleapis.com \
-  discoveryengine.googleapis.com \
   cloudbuild.googleapis.com \
+  discoveryengine.googleapis.com \
   --project=$PROJECT_ID
 ```
 
-## Step 4: Make Scripts Executable
+## Step 4: Make the Script Executable
 
 ```bash
-chmod +x deploy.sh setup-secret.sh
+chmod +x deploy.sh
 ```
 
-## Step 5: Set Up Service Account and Secret
-
-```bash
-# Replace with your actual project ID
-PROJECT_ID=$(gcloud config get-value project)
-
-# Create the service account and set up the secret
-./setup-secret.sh $PROJECT_ID
-```
-
-This script will:
-1. Create a service account named "chainlit-vertex-sa" if it doesn't exist
-2. Grant the necessary roles to the service account
-3. Create a service account key
-4. Store the key in Secret Manager as "chainlit-sa-key"
-5. Grant the service account access to the secret
-
-> **Note on Permissions**: You need sufficient permissions in your Google Cloud project to create service accounts, assign IAM roles, and manage secrets. If you encounter permission errors, the script will provide guidance on what permissions you need or what actions to take. You may need to ask your project administrator for help if you don't have the required permissions.
->
-> Required roles for this step:
-> - `Service Account Admin` (to create service accounts)
-> - `Project IAM Admin` (to assign roles)
-> - `Secret Manager Admin` (to create and manage secrets)
-
-## Step 6: Deploy to Cloud Run
+## Step 5: Deploy to Cloud Run
 
 ```bash
 # Replace with your actual project ID and data store ID
 PROJECT_ID=$(gcloud config get-value project)
-LOCATION="us-central1"
 DATA_STORE_ID="your-data-store-id"  # Replace with your actual data store ID
-SERVICE_NAME="chainlit-vertex-app"
 
 # Run the deployment script
-./deploy.sh $PROJECT_ID $LOCATION $DATA_STORE_ID $SERVICE_NAME
+./deploy.sh $PROJECT_ID $DATA_STORE_ID
+```
+
+The script will:
+1. Create an Artifact Registry repository if it doesn't exist
+2. Enable required APIs
+3. Submit the build to Cloud Build
+4. Deploy to Cloud Run with the necessary environment variables
+
+## Step 6: Monitor the Deployment
+
+After submitting the deployment, you can monitor its progress:
+
+```bash
+# List recent builds
+gcloud builds list --project=$PROJECT_ID
+
+# View logs for a specific build
+gcloud builds log BUILD_ID --project=$PROJECT_ID
 ```
 
 ## Step 7: Access Your Application
 
-After deployment completes, the script will output the URL of your deployed application. Click on this URL to open your application in a new browser tab.
+Once the deployment is complete, you can access your application at the URL provided in the deployment output. You can also find it in the Cloud Run console or by running:
+
+```bash
+gcloud run services describe chainlit-vertex-app \
+  --region=us-central1 \
+  --project=$PROJECT_ID \
+  --format='value(status.url)'
+```
 
 ## Troubleshooting
 
-### Check Deployment Status
+### Permission Issues
+
+If you encounter permission issues, ensure your account has the necessary roles:
 
 ```bash
-gcloud run services describe $SERVICE_NAME \
-  --region=$LOCATION \
-  --project=$PROJECT_ID
+# Grant yourself the necessary roles
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$(gcloud config get-value account)" \
+  --role="roles/artifactregistry.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$(gcloud config get-value account)" \
+  --role="roles/cloudbuild.builds.editor"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$(gcloud config get-value account)" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="user:$(gcloud config get-value account)" \
+  --role="roles/iam.serviceAccountUser"
 ```
 
-### View Logs
+### Cloud Build Service Account Permissions
+
+The Cloud Build service account may need additional permissions:
 
 ```bash
-gcloud run services logs read $SERVICE_NAME \
-  --region=$LOCATION \
-  --project=$PROJECT_ID
-```
+# Grant the Cloud Build service account permission to deploy to Cloud Run
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')@cloudbuild.gserviceaccount.com" \
+  --role="roles/run.admin"
 
-### Check Build Status
-
-If the build fails:
-
-```bash
-gcloud builds list --project=$PROJECT_ID
-```
-
-To see detailed logs for a specific build:
-
-```bash
-gcloud builds log BUILD_ID --project=$PROJECT_ID
+# Grant the Cloud Build service account permission to act as service accounts
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')@cloudbuild.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
 ```
 
 ## Updating Your Deployment
@@ -143,7 +152,7 @@ To update your deployment after making changes:
 2. Run the deployment script again with the same parameters
 
 ```bash
-./deploy.sh $PROJECT_ID $LOCATION $DATA_STORE_ID $SERVICE_NAME
+./deploy.sh $PROJECT_ID $DATA_STORE_ID
 ```
 
-The script will build a new Docker image with a new tag and update your Cloud Run service.
+The script will build a new Docker image and update your Cloud Run service.

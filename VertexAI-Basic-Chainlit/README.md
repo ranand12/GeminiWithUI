@@ -1,28 +1,39 @@
 # Chainlit with Vertex AI Deployment
 
-This repository contains a Chainlit application that uses Google's Vertex AI Discovery Engine for conversational search, along with a deployment script to deploy the application to Google Cloud Run.
+This repository contains a Chainlit application that uses Google's Vertex AI Discovery Engine for conversational search, along with a simplified deployment script to deploy the application to Google Cloud Run.
+
+## Deployment from Google Cloud Shell
+
+The easiest way to deploy this application is directly from Google Cloud Shell:
+
+1. Open [Google Cloud Shell](https://shell.cloud.google.com/)
+2. Clone this repository or upload the files
+3. Navigate to the project directory
+4. Run the deployment script
+
+```bash
+# Clone the repository (if using Git)
+git clone https://github.com/your-username/your-repo.git
+cd your-repo/VertexAI-Basic-Chainlit
+
+# Make the script executable
+chmod +x deploy.sh
+
+# Deploy the application
+./deploy.sh YOUR_PROJECT_ID YOUR_DATA_STORE_ID
+```
 
 ## Prerequisites
 
 Before deploying the application, ensure you have the following:
 
-1. A Google Cloud project with the following APIs enabled:
-   - Cloud Run API
-   - Artifact Registry API
-   - Discovery Engine API
-   - Secret Manager API
+1. A Google Cloud account with billing enabled
 2. A Discovery Engine data store set up in your Google Cloud project
-
-### For Local Deployment
-
-If deploying from your local machine, you'll also need:
-
-1. [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and configured
-2. [Docker](https://docs.docker.com/get-docker/) installed
-
-### For Cloud Shell Deployment
-
-You can also deploy directly from [Google Cloud Shell](https://shell.cloud.google.com/), which has all the necessary tools pre-installed. See the DEPLOYMENT_GUIDE.md for detailed instructions.
+3. Required permissions:
+   - Artifact Registry Administrator
+   - Cloud Build Editor
+   - Cloud Run Admin
+   - Service Account User
 
 ## Environment Variables
 
@@ -32,14 +43,14 @@ The application requires the following environment variables:
 - `location`: The location of your Discovery Engine data store (e.g., "global", "us", "eu")
 - `data_store_id`: The ID of your Discovery Engine data store
 
-## Deployment
+## Simplified Deployment
 
-The `deploy.sh` script automates the deployment process to Google Cloud Run. It handles:
+This project uses Cloud Build for a streamlined deployment process. The deployment script handles:
 
-1. Creating a service account with necessary permissions (if not provided)
-2. Setting up an Artifact Registry repository
+1. Creating an Artifact Registry repository (if it doesn't exist)
+2. Enabling required Google Cloud APIs
 3. Building and pushing the Docker image
-4. Deploying the application to Cloud Run with the required configuration
+4. Deploying the application to Cloud Run
 
 ### Usage
 
@@ -52,74 +63,70 @@ chmod +x deploy.sh
 Run the deployment script:
 
 ```bash
-./deploy.sh PROJECT_ID [LOCATION] [DATA_STORE_ID] [SERVICE_NAME] [SERVICE_ACCOUNT]
+./deploy.sh PROJECT_ID DATA_STORE_ID [REGION] [SERVICE_NAME]
 ```
 
 Parameters:
 - `PROJECT_ID` (required): Your Google Cloud project ID
-- `LOCATION` (optional, default: "us-central1"): The region to deploy to
 - `DATA_STORE_ID` (required): The ID of your Discovery Engine data store
+- `REGION` (optional, default: "us-central1"): The region to deploy to
 - `SERVICE_NAME` (optional, default: "chainlit-vertex-app"): The name for your Cloud Run service
-- `SERVICE_ACCOUNT` (optional): A custom service account to use. If not provided, one will be created
 
 Example:
 
 ```bash
-./deploy.sh my-project-id us-central1 my-data-store-id my-chainlit-app
+./deploy.sh my-project-id my-data-store-id
 ```
 
-### Service Account and Secret
+## Deployment Process
 
-The deployment script will:
+The deployment process consists of the following steps:
 
-1. Create a service account with the necessary permissions if one is not provided
-2. Expect a secret named `chainlit-sa-key` containing the service account key
+1. The script checks if the Artifact Registry repository exists and creates it if needed
+2. Required Google Cloud APIs are enabled
+3. Cloud Build builds the Docker image and pushes it to Artifact Registry
+4. Cloud Run service is deployed with the specified environment variables
 
-To set up the service account key and secret, use the provided `setup-secret.sh` script:
+## Troubleshooting
+
+### Build Failures
+
+If the build fails, check the Cloud Build logs:
 
 ```bash
-# Make the script executable
-chmod +x setup-secret.sh
-
-# Run the script with your project ID
-./setup-secret.sh PROJECT_ID [SERVICE_ACCOUNT_NAME]
+gcloud builds list --project=PROJECT_ID
+gcloud builds log BUILD_ID --project=PROJECT_ID
 ```
 
-Parameters:
-- `PROJECT_ID` (required): Your Google Cloud project ID
-- `SERVICE_ACCOUNT_NAME` (optional, default: "chainlit-vertex-sa"): The name of the service account
+### Deployment Issues
 
-The script will:
-1. Create a service account key
-2. Create a secret named `chainlit-sa-key` in Secret Manager
-3. Grant the service account access to the secret
-4. Clean up temporary files
-
-Alternatively, you can create the secret manually:
+If the deployment fails, check the Cloud Run logs:
 
 ```bash
-# Create a service account key
-gcloud iam service-accounts keys create key.json --iam-account=SERVICE_ACCOUNT_EMAIL
-
-# Create a secret with the key
-gcloud secrets create chainlit-sa-key --data-file=key.json
-
-# Delete the local key file for security
-rm key.json
+gcloud run services logs read SERVICE_NAME --region=REGION --project=PROJECT_ID
 ```
 
-## Cloud Run Configuration
+### Permission Issues
 
-The deployment configures the Cloud Run service with:
+Ensure your account has the necessary permissions:
 
-- Memory: 2GB
-- CPU: 1
-- Min instances: 0 (scales to zero)
-- Max instances: 2
-- Timeout: 3600s (1 hour)
-- Public access (--allow-unauthenticated)
+```bash
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="user:YOUR_EMAIL" \
+  --role="roles/artifactregistry.admin"
 
-You can modify these settings in the `deploy.sh` script if needed.
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="user:YOUR_EMAIL" \
+  --role="roles/cloudbuild.builds.editor"
+
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="user:YOUR_EMAIL" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="user:YOUR_EMAIL" \
+  --role="roles/iam.serviceAccountUser"
+```
 
 ## Local Development
 

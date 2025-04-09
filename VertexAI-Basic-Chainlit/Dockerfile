@@ -1,25 +1,30 @@
-FROM python:3.11
+FROM python:3.11-slim-bullseye
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Google Cloud SDK
 RUN curl -sSL https://sdk.cloud.google.com | bash
 ENV PATH $PATH:/root/google-cloud-sdk/bin
 
-# Install build dependencies
-RUN pip install --upgrade pip
-RUN pip install wheel setuptools build
+# Set working directory
+WORKDIR /app
 
-# Pre-install packages that need wheel building
-RUN pip install literalai==0.0.300 syncer==2.0.3
+# Install Python dependencies first
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install google-cloud-discoveryengine chainlit==1.0.401
 
+# Copy application files
 COPY chainlit-with-vertex-basic.py app.py
-COPY requirements.txt /tmp/
 COPY chainlit.md chainlit.md
+COPY public/ public/
 
-# Create .chainlit directory if it doesn't exist
+# Create .chainlit directory
 RUN mkdir -p /.chainlit
 
-# Install dependencies
-RUN pip install --requirement /tmp/requirements.txt
-RUN pip install google-cloud-discoveryengine
-RUN pip install --no-build-isolation chainlit==1.0.401
-#RUN pip install chainlit==1.1.301
-
-CMD ["chainlit", "run", "app.py", "-h"]  # Include "-h" for production
+# Run the application
+CMD ["chainlit", "run", "app.py", "--host", "0.0.0.0", "--port", "8080"]

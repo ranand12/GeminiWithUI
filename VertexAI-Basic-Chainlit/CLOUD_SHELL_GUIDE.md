@@ -79,6 +79,13 @@ This script will:
 4. Store the key in Secret Manager as "chainlit-sa-key"
 5. Grant the service account access to the secret
 
+> **Note on Permissions**: You need sufficient permissions in your Google Cloud project to create service accounts, assign IAM roles, and manage secrets. If you encounter permission errors, the script will provide guidance on what permissions you need or what actions to take. You may need to ask your project administrator for help if you don't have the required permissions.
+>
+> Required roles for this step:
+> - `Service Account Admin` (to create service accounts)
+> - `Project IAM Admin` (to assign roles)
+> - `Secret Manager Admin` (to create and manage secrets)
+
 ## Step 6: Deploy to Cloud Run
 
 ```bash

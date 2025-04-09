@@ -62,37 +62,35 @@ gcloud services enable run.googleapis.com \
 chmod +x deploy.sh setup-secret.sh
 ```
 
-## Step 5: Create Service Account and Set Up Secret
+## Step 5: Set Up Service Account and Secret
 
 ```bash
-# Replace with your actual project ID if needed
+# Replace with your actual project ID
 PROJECT_ID=$(gcloud config get-value project)
 
-# Run the setup script
-./deploy.sh $PROJECT_ID
-
-# Create and store the service account key
+# Create the service account and set up the secret
 ./setup-secret.sh $PROJECT_ID
 ```
+
+This script will:
+1. Create a service account named "chainlit-vertex-sa" if it doesn't exist
+2. Grant the necessary roles to the service account
+3. Create a service account key
+4. Store the key in Secret Manager as "chainlit-sa-key"
+5. Grant the service account access to the secret
 
 ## Step 6: Deploy to Cloud Run
 
 ```bash
-# Replace these values with your actual values
+# Replace with your actual project ID and data store ID
 PROJECT_ID=$(gcloud config get-value project)
 LOCATION="us-central1"
-DATA_STORE_ID="your-data-store-id"
+DATA_STORE_ID="your-data-store-id"  # Replace with your actual data store ID
 SERVICE_NAME="chainlit-vertex-app"
 
 # Run the deployment script
 ./deploy.sh $PROJECT_ID $LOCATION $DATA_STORE_ID $SERVICE_NAME
 ```
-
-The script will:
-1. Detect that it's running in Cloud Shell
-2. Use Cloud Build to build and push the Docker image
-3. Deploy the application to Cloud Run
-4. Configure the necessary environment variables and secrets
 
 ## Step 7: Access Your Application
 

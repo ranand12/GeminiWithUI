@@ -27,11 +27,26 @@ fi
 
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Check if service account exists
+# Check if service account exists, create it if it doesn't
 if ! gcloud iam service-accounts describe "$SERVICE_ACCOUNT" --project="$PROJECT_ID" &>/dev/null; then
-  echo "Error: Service account $SERVICE_ACCOUNT does not exist."
-  echo "Please run the deploy.sh script first to create the service account, or create it manually."
-  exit 1
+  echo "Service account $SERVICE_ACCOUNT does not exist. Creating it now..."
+  gcloud iam service-accounts create "$SERVICE_ACCOUNT_NAME" \
+    --display-name="Chainlit Vertex AI Service Account" \
+    --project="$PROJECT_ID"
+  
+  # Add necessary roles to the service account
+  echo "Granting necessary roles to service account..."
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/discoveryengine.viewer"
+  
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/discoveryengine.admin"
+  
+  echo "Service account created successfully."
+else
+  echo "Using existing service account: $SERVICE_ACCOUNT"
 fi
 
 # Create a temporary directory for the key
